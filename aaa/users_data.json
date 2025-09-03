@@ -1,0 +1,18 @@
+{
+    "rdx": {
+        "gender": "male",
+        "age_group": 1,
+        "casual_wear": {
+            "shirts": {
+                "1": "red",
+                "2": "green"
+            },
+            "trousers": {
+                "1": "red"
+            }
+        },
+        "occasional_wear": {
+            "1": "vesti"
+        }
+    }
+}
