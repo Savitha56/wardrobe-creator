@@ -1,0 +1,256 @@
+import random
+
+DELIM = "|"
+SEP = "---"
+
+STYLE_TYPES = ["casual", "occasional"]
+GENDERS = ["male", "female", "other"]
+
+AGE_GROUPS = {
+    "child": range(0, 11),
+    "youth": range(11, 26),
+    "adult": range(26, 60),
+    "senior": range(60, 150)
+}
+
+# ---------------- Age & Category ----------------
+def get_age_group(age):
+    for group, rng in AGE_GROUPS.items():
+        if age in rng:
+            return group
+    return "unknown"
+
+def get_user_category(gender, age_group):
+    if gender == "male":
+        if age_group == "child":
+            return "boy child"
+        else:
+            return "man"
+    elif gender == "female":
+        if age_group == "child":
+            return "girl child"
+        else:
+            return "woman"
+    return "other"
+
+# Allowed dress rules
+def allowed_items_by_category(category, style):
+    rules = {
+        "boy child": {
+            "casual": ["t-shirt", "shorts", "trousers"],
+            "occasional": ["shirt", "trousers"]
+        },
+        "girl child": {
+            "casual": ["frock", "tops", "trousers"],
+            "occasional": ["frock", "lehenga"]
+        },
+        "man": {
+            "casual": ["shirt", "pant", "t-shirt", "jeans"],
+            "occasional": ["suit", "blazer", "kurta", "shirt", "pant"]
+        },
+        "woman": {
+            "casual": ["tops", "pants", "jeans"],
+            "occasional": ["saree", "salwar", "lehenga", "gown"]
+        }
+    }
+    return rules.get(category, {}).get(style, [])
+
+# ---------------- File Handling ----------------
+def load_data(username):
+    filename = f"{username}.txt"
+    user = {"name": "", "gender": "", "age": ""}
+    wardrobe = {}
+
+    try:
+        with open(filename, "r", encoding="utf-8") as f:
+            lines = [line.strip() for line in f]
+
+        is_wardrobe = False
+        for line in lines:
+            if line == SEP:
+                is_wardrobe = True
+                continue
+            if not is_wardrobe and ":" in line:
+                key, val = line.split(":", 1)
+                user[key.lower().strip()] = val.strip()
+            elif is_wardrobe and DELIM in line:
+                category, style, item = line.split(DELIM, 2)
+                wardrobe.setdefault(category, {}).setdefault(style, []).append(item)
+    except FileNotFoundError:
+        pass
+
+    return user, wardrobe
+
+def save_data(username, user, wardrobe):
+    filename = f"{username}.txt"
+    with open(filename, "w", encoding="utf-8") as f:
+        for key in ("name", "gender", "age"):
+            f.write(f"{key.capitalize()}: {user.get(key, '')}\n")
+        f.write(f"{SEP}\n")
+        for category, styles in wardrobe.items():
+            for style, items in styles.items():
+                for item in items:
+                    f.write(f"{category}{DELIM}{style}{DELIM}{item}\n")
+
+# ---------------- Wardrobe Operations ----------------
+def input_user_details(user):
+    if not user.get("name"):
+        user["name"] = input("Enter your name: ").strip()
+
+    while True:
+        gender = input("Enter gender (male/female/other): ").strip().lower()
+        if gender in GENDERS:
+            user["gender"] = gender
+            break
+        print("Invalid gender!")
+
+    while True:
+        try:
+            age = int(input("Enter age: ").strip())
+            if 0 <= age <= 120:
+                user["age"] = str(age)
+                break
+            else:
+                print("Enter a valid age 0–120.")
+        except ValueError:
+            print("Enter a number.")
+
+def view_wardrobe(wardrobe):
+    if not wardrobe:
+        print("\nWardrobe is empty.")
+        return
+    print("\nYour Wardrobe:")
+    for category, styles in wardrobe.items():
+        print(f"  {category}:")
+        for style, items in styles.items():
+            print(f"    {style}: {', '.join(items)}")
+
+def add_item(user, wardrobe):
+    gender = user["gender"]
+    age = int(user["age"])
+    age_group = get_age_group(age)
+    category = get_user_category(gender, age_group)
+
+    print("\nChoose style: 1. Casual  2. Occasional")
+    style_choice = input("Enter choice (1/2): ").strip()
+    style = "casual" if style_choice == "1" else "occasional"
+
+    allowed = allowed_items_by_category(category, style)
+    if not allowed:
+        print("No allowed items.")
+        return
+
+    print(f"Allowed items: {', '.join(allowed)}")
+    item = input("Enter item: ").strip().lower()
+
+    if any(a in item for a in allowed):
+        wardrobe.setdefault(category, {}).setdefault(style, []).append(item)
+        print(f"✅ {item} added to {category} ({style})")
+    else:
+        print("❌ Not allowed for your category/style.")
+
+# ---------------- Outfit Suggestion ----------------
+def suggest_outfit(user, wardrobe):
+    gender = user["gender"]
+    age = int(user["age"])
+    age_group = get_age_group(age)
+    category = get_user_category(gender, age_group)
+
+    if category not in wardrobe:
+        print("\nWardrobe is empty. Add clothes first.")
+        return
+
+    occasion = input("Occasion (casual/office/interview/wedding/party/festival): ").strip().lower()
+    weather = input("Weather (hot/cold/rainy/humid): ").strip().lower()
+    mood = input("Mood (bold/calm/energetic/minimal): ").strip().lower()
+    time_of_day = input("Time (morning/afternoon/evening/night): ").strip().lower()
+
+    category_items = wardrobe.get(category, {})
+
+    outfit = []
+
+    # interview/office strict rule
+    if "interview" in occasion or "office" in occasion:
+        if category in ["man", "boy child"]:
+            shirts = [x for x in category_items.get("casual", []) + category_items.get("occasional", []) if "shirt" in x]
+            pants = [x for x in category_items.get("casual", []) + category_items.get("occasional", []) if "pant" in x or "trousers" in x]
+            if shirts and pants:
+                outfit = [random.choice(shirts), random.choice(pants)]
+        elif category in ["woman", "girl child"]:
+            tops = [x for x in category_items.get("casual", []) if "tops" in x]
+            pants = [x for x in category_items.get("casual", []) if "pants" in x or "trousers" in x]
+            sarees = [x for x in category_items.get("occasional", []) if "saree" in x]
+            salwars = [x for x in category_items.get("occasional", []) if "salwar" in x]
+            if tops and pants:
+                outfit = [random.choice(tops), random.choice(pants)]
+            elif sarees:
+                outfit = [random.choice(sarees)]
+            elif salwars:
+                outfit = [random.choice(salwars)]
+
+    else:  # casual/random selection
+        style = "casual" if "casual" in occasion else "occasional"
+        items = category_items.get(style, [])
+        if items:
+            outfit = [random.choice(items)]
+
+    print("\n==================== Outfit Suggested ====================")
+    if outfit:
+        print("Source: Your wardrobe")
+        for item in outfit:
+            print("-", item)
+    else:
+        print("❌ Not available in wardrobe. Buy suitable outfit outside (budget-friendly or costly).")
+
+    # General style tips
+    print("\nGeneral style tips:")
+    print("- Choose breathable fabrics for comfort.")
+    print("- Match footwear with outfit.")
+    print("- Light colors for daytime, darker for evening.")
+    print("- Keep accessories minimal.")
+
+    rating = input("\nRate this outfit suggestion (1-5): ").strip()
+    print(f"Thanks! You rated {rating}/5.")
+
+# ---------------- Main ----------------
+def main():
+    username = input("Enter your username: ").strip().lower()
+    user, wardrobe = load_data(username)
+
+    if not user.get("name"):
+        print("No user found. Please enter details.")
+        input_user_details(user)
+        save_data(username, user, wardrobe)
+
+    print(f"\nWelcome, {user.get('name', username)}!")
+
+    while True:
+        print("\nWardrobe Manager")
+        print("1. View wardrobe")
+        print("2. Add item")
+        print("3. Suggest outfit")
+        print("4. Edit user details")
+        print("5. Exit")
+        choice = input("Choose (1-5): ").strip()
+
+        if choice == "1":
+            view_wardrobe(wardrobe)
+        elif choice == "2":
+            add_item(user, wardrobe)
+            save_data(username, user, wardrobe)
+        elif choice == "3":
+            suggest_outfit(user, wardrobe)
+        elif choice == "4":
+            input_user_details(user)
+            save_data(username, user, wardrobe)
+        elif choice == "5":
+            save_data(username, user, wardrobe)
+            print("Goodbye!")
+            break
+        else:
+            print("Invalid choice!")
+
+if __name__ == "__main__":
+    main()
+
+
